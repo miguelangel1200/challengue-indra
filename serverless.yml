@@ -8,7 +8,7 @@ plugins:
   - serverless-offline
 
 custom:
-  dotenv: {}  # carga .env desde la raíz
+  dotenv: {}
   esbuild:
     bundle: true
     minify: false
@@ -125,10 +125,10 @@ functions:
     handler: src/handlers/appointmentPE.handler
     vpc:
       securityGroupIds:
-        - sg-0882ea919e6ce2a3d    # <-- REEMPLAZA con el ID del Security Group de tu Lambda
+        - sg-0882ea919e6ce2a3d    
       subnetIds:
-        - subnet-05f80e659d5ee98da # <-- ID de tu Subnet en us-east-2a
-        - subnet-0814d96044dac1e2f # <-- ID de Subnet en us-east-2b 
+        - subnet-05f80e659d5ee98da 
+        - subnet-0814d96044dac1e2f  
     events:
       - sqs:
           arn: ${env:SQS_PE_ARN}
@@ -138,10 +138,10 @@ functions:
     handler: src/handlers/appointmentCL.handler
     vpc:
       securityGroupIds:
-        - sg-0882ea919e6ce2a3d    # <-- REEMPLAZA con el ID del Security Group de tu Lambda
+        - sg-0882ea919e6ce2a3d    
       subnetIds:
-        - subnet-05f80e659d5ee98da # <-- ID de tu Subnet en us-east-2a
-        - subnet-0814d96044dac1e2f # <-- ID de Subnet en us-east-2b
+        - subnet-05f80e659d5ee98da 
+        - subnet-0814d96044dac1e2f 
     events:
       - sqs:
           arn: ${env:SQS_CL_ARN}
