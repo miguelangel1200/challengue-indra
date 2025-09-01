@@ -1,0 +1,921 @@
+{
+  "service": {
+    "service": "rimac-backend",
+    "serviceObject": {
+      "name": "rimac-backend"
+    },
+    "provider": {
+      "name": "aws",
+      "runtime": "nodejs16.x",
+      "region": "us-east-2",
+      "deploymentBucket": "rimac-backend-dev-serverlessdeploymentbucket",
+      "environment": {
+        "APPOINTMENTS_TABLE": "Appointments",
+        "SNS_TOPIC_ARN": "arn:aws:sns:us-east-2:254727510531:appointments-topic",
+        "SQS_PE_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+        "SQS_CL_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+        "SQS_CONFIRMATIONS_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+        "SQS_CONFIRMATIONS_URL": "https://sqs.us-east-2.amazonaws.com/254727510531/SQS_CONFIRMATIONS",
+        "EVENT_BUS_NAME": "default",
+        "DB_PE_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+        "DB_PE_PORT": "3306",
+        "DB_PE_USER": "admin_miguel",
+        "DB_PE_PASS": "61Tje8WvDwFr0zF0iLLW",
+        "DB_PE_NAME": "rimac_backend_pe",
+        "DB_CL_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+        "DB_CL_PORT": "3306",
+        "DB_CL_USER": "admin_miguel",
+        "DB_CL_PASS": "61Tje8WvDwFr0zF0iLLW",
+        "DB_CL_NAME": "rimac_backend_cl"
+      },
+      "iamRoleStatements": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "dynamodb:PutItem",
+            "dynamodb:UpdateItem",
+            "dynamodb:GetItem",
+            "dynamodb:Query"
+          ],
+          "Resource": [
+            "arn:aws:dynamodb:us-east-2:254727510531:table/Appointments",
+            "arn:aws:dynamodb:us-east-2:254727510531:table/Appointments/index/*"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "sns:Publish"
+          ],
+          "Resource": "arn:aws:sns:us-east-2:254727510531:appointments-topic"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "sqs:SendMessage",
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage",
+            "sqs:GetQueueAttributes"
+          ],
+          "Resource": [
+            "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+            "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+            "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "rds-db:connect"
+          ],
+          "Resource": [
+            "arn:aws:rds-db:us-east-2:254727510531:dbuser:db-WTU5NIAOTDBDDMMO2CNJR3KYAM/admin_miguel",
+            "arn:aws:rds-db:us-east-2:254727510531:dbuser:db-WTU5NIAOTDBDDMMO2CNJR3KYAM/admin_miguel"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "ec2:CreateNetworkInterface",
+            "ec2:DescribeNetworkInterfaces",
+            "ec2:DeleteNetworkInterface"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "events:PutEvents"
+          ],
+          "Resource": "*"
+        }
+      ],
+      "stage": "dev",
+      "versionFunctions": true,
+      "deploymentBucketObject": {
+        "name": "rimac-backend-dev-serverlessdeploymentbucket"
+      },
+      "compiledCloudFormationTemplate": {
+        "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "The AWS CloudFormation template for this Serverless application",
+        "Resources": {
+          "AppointmentLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/rimac-backend-dev-appointment"
+            }
+          },
+          "AppointmentConfirmLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/rimac-backend-dev-appointmentConfirm"
+            }
+          },
+          "AppointmentPELogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/rimac-backend-dev-appointmentPE"
+            }
+          },
+          "AppointmentCLLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/rimac-backend-dev-appointmentCL"
+            }
+          },
+          "IamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "rimac-backend",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup",
+                          "logs:TagResource"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/rimac-backend-dev*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/rimac-backend-dev*:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][0]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][1]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][2]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][3]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][4]"
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][5]"
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "sqs:ReceiveMessage",
+                          "sqs:DeleteMessage",
+                          "sqs:GetQueueAttributes"
+                        ],
+                        "Resource": [
+                          "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+                          "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+                          "arn:aws:sqs:us-east-2:254727510531:SQS_CL"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "rimac-backend",
+                    "dev",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              },
+              "ManagedPolicyArns": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
+                    ]
+                  ]
+                }
+              ]
+            }
+          },
+          "AppointmentLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "rimac-backend-dev-serverlessdeploymentbucket",
+                "S3Key": "serverless/rimac-backend/dev/1756698801108-2025-09-01T03:53:21.108Z/rimac-backend.zip"
+              },
+              "Handler": "src/handlers/appointment.handler",
+              "Runtime": "nodejs16.x",
+              "FunctionName": "rimac-backend-dev-appointment",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "APPOINTMENTS_TABLE": "Appointments",
+                  "SNS_TOPIC_ARN": "arn:aws:sns:us-east-2:254727510531:appointments-topic",
+                  "SQS_PE_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+                  "SQS_CL_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+                  "SQS_CONFIRMATIONS_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+                  "SQS_CONFIRMATIONS_URL": "https://sqs.us-east-2.amazonaws.com/254727510531/SQS_CONFIRMATIONS",
+                  "EVENT_BUS_NAME": "default",
+                  "DB_PE_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_PE_PORT": "3306",
+                  "DB_PE_USER": "admin_miguel",
+                  "DB_PE_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_PE_NAME": "rimac_backend_pe",
+                  "DB_CL_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_CL_PORT": "3306",
+                  "DB_CL_USER": "admin_miguel",
+                  "DB_CL_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_CL_NAME": "rimac_backend_cl"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AppointmentLogGroup"
+            ]
+          },
+          "AppointmentConfirmLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "rimac-backend-dev-serverlessdeploymentbucket",
+                "S3Key": "serverless/rimac-backend/dev/1756698801108-2025-09-01T03:53:21.108Z/rimac-backend.zip"
+              },
+              "Handler": "src/handlers/appointmentConfirm.handler",
+              "Runtime": "nodejs16.x",
+              "FunctionName": "rimac-backend-dev-appointmentConfirm",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "APPOINTMENTS_TABLE": "Appointments",
+                  "SNS_TOPIC_ARN": "arn:aws:sns:us-east-2:254727510531:appointments-topic",
+                  "SQS_PE_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+                  "SQS_CL_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+                  "SQS_CONFIRMATIONS_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+                  "SQS_CONFIRMATIONS_URL": "https://sqs.us-east-2.amazonaws.com/254727510531/SQS_CONFIRMATIONS",
+                  "EVENT_BUS_NAME": "default",
+                  "DB_PE_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_PE_PORT": "3306",
+                  "DB_PE_USER": "admin_miguel",
+                  "DB_PE_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_PE_NAME": "rimac_backend_pe",
+                  "DB_CL_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_CL_PORT": "3306",
+                  "DB_CL_USER": "admin_miguel",
+                  "DB_CL_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_CL_NAME": "rimac_backend_cl"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AppointmentConfirmLogGroup"
+            ]
+          },
+          "AppointmentPELambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "rimac-backend-dev-serverlessdeploymentbucket",
+                "S3Key": "serverless/rimac-backend/dev/1756698801108-2025-09-01T03:53:21.108Z/rimac-backend.zip"
+              },
+              "Handler": "src/handlers/appointmentPE.handler",
+              "Runtime": "nodejs16.x",
+              "FunctionName": "rimac-backend-dev-appointmentPE",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "APPOINTMENTS_TABLE": "Appointments",
+                  "SNS_TOPIC_ARN": "arn:aws:sns:us-east-2:254727510531:appointments-topic",
+                  "SQS_PE_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+                  "SQS_CL_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+                  "SQS_CONFIRMATIONS_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+                  "SQS_CONFIRMATIONS_URL": "https://sqs.us-east-2.amazonaws.com/254727510531/SQS_CONFIRMATIONS",
+                  "EVENT_BUS_NAME": "default",
+                  "DB_PE_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_PE_PORT": "3306",
+                  "DB_PE_USER": "admin_miguel",
+                  "DB_PE_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_PE_NAME": "rimac_backend_pe",
+                  "DB_CL_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_CL_PORT": "3306",
+                  "DB_CL_USER": "admin_miguel",
+                  "DB_CL_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_CL_NAME": "rimac_backend_cl"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              },
+              "VpcConfig": {
+                "SecurityGroupIds": [
+                  "sg-0882ea919e6ce2a3d"
+                ],
+                "SubnetIds": [
+                  "subnet-05f80e659d5ee98da",
+                  "subnet-0814d96044dac1e2f"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AppointmentPELogGroup"
+            ]
+          },
+          "AppointmentCLLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "rimac-backend-dev-serverlessdeploymentbucket",
+                "S3Key": "serverless/rimac-backend/dev/1756698801108-2025-09-01T03:53:21.108Z/rimac-backend.zip"
+              },
+              "Handler": "src/handlers/appointmentCL.handler",
+              "Runtime": "nodejs16.x",
+              "FunctionName": "rimac-backend-dev-appointmentCL",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "APPOINTMENTS_TABLE": "Appointments",
+                  "SNS_TOPIC_ARN": "arn:aws:sns:us-east-2:254727510531:appointments-topic",
+                  "SQS_PE_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+                  "SQS_CL_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+                  "SQS_CONFIRMATIONS_ARN": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+                  "SQS_CONFIRMATIONS_URL": "https://sqs.us-east-2.amazonaws.com/254727510531/SQS_CONFIRMATIONS",
+                  "EVENT_BUS_NAME": "default",
+                  "DB_PE_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_PE_PORT": "3306",
+                  "DB_PE_USER": "admin_miguel",
+                  "DB_PE_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_PE_NAME": "rimac_backend_pe",
+                  "DB_CL_HOST": "backend-rimac.cfco68ysmpb0.us-east-2.rds.amazonaws.com",
+                  "DB_CL_PORT": "3306",
+                  "DB_CL_USER": "admin_miguel",
+                  "DB_CL_PASS": "61Tje8WvDwFr0zF0iLLW",
+                  "DB_CL_NAME": "rimac_backend_cl"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              },
+              "VpcConfig": {
+                "SecurityGroupIds": [
+                  "sg-0882ea919e6ce2a3d"
+                ],
+                "SubnetIds": [
+                  "subnet-05f80e659d5ee98da",
+                  "subnet-0814d96044dac1e2f"
+                ]
+              }
+            },
+            "DependsOn": [
+              "AppointmentCLLogGroup"
+            ]
+          },
+          "AppointmentLambdaVersionXCRbjOqShEAKeKxh4OY3d0RKT16DSsTFP09SJpvmEeY": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AppointmentLambdaFunction"
+              },
+              "CodeSha256": "REAf9riZwDBNvrQQBQsfuqq185WzQi2/14hAerJvjX8="
+            }
+          },
+          "AppointmentConfirmLambdaVersionTGAsqDQiN2a9ww5w5kcgY75jutqj03YSaPzsBW4PA": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AppointmentConfirmLambdaFunction"
+              },
+              "CodeSha256": "REAf9riZwDBNvrQQBQsfuqq185WzQi2/14hAerJvjX8="
+            }
+          },
+          "AppointmentPELambdaVersionfoxpr2vBTgpLt79kmamPbZOzLyuQPB4X5D8IUNBo": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AppointmentPELambdaFunction"
+              },
+              "CodeSha256": "REAf9riZwDBNvrQQBQsfuqq185WzQi2/14hAerJvjX8="
+            }
+          },
+          "AppointmentCLLambdaVersionx5siP0ObGntsjRtOdsJz8MdxpvVa5tHHJATeqcspRQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "AppointmentCLLambdaFunction"
+              },
+              "CodeSha256": "REAf9riZwDBNvrQQBQsfuqq185WzQi2/14hAerJvjX8="
+            }
+          },
+          "AppointmentConfirmEventSourceMappingSQSSQSCONFIRMATIONS": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 1,
+              "EventSourceArn": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AppointmentConfirmLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "AppointmentPEEventSourceMappingSQSSQSPE": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 1,
+              "EventSourceArn": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AppointmentPELambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "AppointmentCLEventSourceMappingSQSSQSCL": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 1,
+              "EventSourceArn": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AppointmentCLLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "HttpApi": {
+            "Type": "AWS::ApiGatewayV2::Api",
+            "Properties": {
+              "Name": "dev-rimac-backend",
+              "ProtocolType": "HTTP"
+            }
+          },
+          "HttpApiStage": {
+            "Type": "AWS::ApiGatewayV2::Stage",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "StageName": "$default",
+              "AutoDeploy": true,
+              "DefaultRouteSettings": {
+                "DetailedMetricsEnabled": false
+              }
+            }
+          },
+          "AppointmentLambdaPermissionHttpApi": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "AppointmentLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "apigateway.amazonaws.com",
+              "SourceArn": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition"
+                    },
+                    ":execute-api:",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId"
+                    },
+                    ":",
+                    {
+                      "Ref": "HttpApi"
+                    },
+                    "/*"
+                  ]
+                ]
+              }
+            }
+          },
+          "HttpApiIntegrationAppointment": {
+            "Type": "AWS::ApiGatewayV2::Integration",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "IntegrationType": "AWS_PROXY",
+              "IntegrationUri": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AppointmentLambdaPermissionHttpApi\"][\"Properties\"][\"FunctionName\"]"
+              },
+              "PayloadFormatVersion": "2.0",
+              "TimeoutInMillis": 30000
+            }
+          },
+          "HttpApiRoutePostAppointment": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "POST /appointment",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAppointment"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAppointment"
+          },
+          "HttpApiRouteGetAppointmentInsuredidVar": {
+            "Type": "AWS::ApiGatewayV2::Route",
+            "Properties": {
+              "ApiId": {
+                "Ref": "HttpApi"
+              },
+              "RouteKey": "GET /appointment/{insuredId}",
+              "Target": {
+                "Fn::Join": [
+                  "/",
+                  [
+                    "integrations",
+                    {
+                      "Ref": "HttpApiIntegrationAppointment"
+                    }
+                  ]
+                ]
+              }
+            },
+            "DependsOn": "HttpApiIntegrationAppointment"
+          },
+          "EventBridgeVPCEndpoint": {
+            "Type": "AWS::EC2::VPCEndpoint",
+            "Properties": {
+              "VpcId": "vpc-056e5760c64b4d888",
+              "ServiceName": {
+                "Fn::Sub": "com.amazonaws.${AWS::Region}.events"
+              },
+              "VpcEndpointType": "Interface",
+              "SubnetIds": [
+                "subnet-05f80e659d5ee98da",
+                "subnet-0814d96044dac1e2f"
+              ],
+              "SecurityGroupIds": [
+                "sg-0882ea919e6ce2a3d"
+              ],
+              "PrivateDnsEnabled": true
+            }
+          }
+        },
+        "Outputs": {
+          "ServerlessDeploymentBucketName": {
+            "Value": "rimac-backend-dev-serverlessdeploymentbucket",
+            "Export": {
+              "Name": "sls-rimac-backend-dev-ServerlessDeploymentBucketName"
+            }
+          },
+          "AppointmentLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AppointmentLambdaVersionXCRbjOqShEAKeKxh4OY3d0RKT16DSsTFP09SJpvmEeY"
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-AppointmentLambdaFunctionQualifiedArn"
+            }
+          },
+          "AppointmentConfirmLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AppointmentConfirmLambdaVersionTGAsqDQiN2a9ww5w5kcgY75jutqj03YSaPzsBW4PA"
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-AppointmentConfirmLambdaFunctionQualifiedArn"
+            }
+          },
+          "AppointmentPELambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AppointmentPELambdaVersionfoxpr2vBTgpLt79kmamPbZOzLyuQPB4X5D8IUNBo"
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-AppointmentPELambdaFunctionQualifiedArn"
+            }
+          },
+          "AppointmentCLLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "AppointmentCLLambdaVersionx5siP0ObGntsjRtOdsJz8MdxpvVa5tHHJATeqcspRQ"
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-AppointmentCLLambdaFunctionQualifiedArn"
+            }
+          },
+          "HttpApiId": {
+            "Description": "Id of the HTTP API",
+            "Value": {
+              "Ref": "HttpApi"
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-HttpApiId"
+            }
+          },
+          "HttpApiUrl": {
+            "Description": "URL of the HTTP API",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "https://",
+                  {
+                    "Ref": "HttpApi"
+                  },
+                  ".execute-api.",
+                  {
+                    "Ref": "AWS::Region"
+                  },
+                  ".",
+                  {
+                    "Ref": "AWS::URLSuffix"
+                  }
+                ]
+              ]
+            },
+            "Export": {
+              "Name": "sls-rimac-backend-dev-HttpApiUrl"
+            }
+          }
+        }
+      },
+      "vpc": {}
+    },
+    "custom": {
+      "dotenv": {},
+      "esbuild": {
+        "bundle": true,
+        "minify": false,
+        "sourcemap": true,
+        "target": "node16",
+        "platform": "node",
+        "format": "cjs",
+        "exclude": [
+          "aws-sdk"
+        ],
+        "concurrency": 10
+      },
+      "serverless-offline": {
+        "noAuth": true,
+        "skipCacheInvalidation": false
+      }
+    },
+    "plugins": [
+      "serverless-esbuild",
+      "serverless-offline"
+    ],
+    "pluginsData": {},
+    "functions": {
+      "appointment": {
+        "handler": "src/handlers/appointment.handler",
+        "events": [
+          {
+            "httpApi": {
+              "path": "/appointment",
+              "method": "post"
+            },
+            "resolvedMethod": "POST",
+            "resolvedPath": "/appointment"
+          },
+          {
+            "httpApi": {
+              "path": "/appointment/{insuredId}",
+              "method": "get"
+            },
+            "resolvedMethod": "GET",
+            "resolvedPath": "/appointment/{insuredId}"
+          }
+        ],
+        "name": "rimac-backend-dev-appointment",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs16.x",
+        "vpc": {},
+        "versionLogicalId": "AppointmentLambdaVersionXCRbjOqShEAKeKxh4OY3d0RKT16DSsTFP09SJpvmEeY"
+      },
+      "appointmentConfirm": {
+        "handler": "src/handlers/appointmentConfirm.handler",
+        "events": [
+          {
+            "sqs": {
+              "arn": "arn:aws:sqs:us-east-2:254727510531:SQS_CONFIRMATIONS",
+              "batchSize": 1
+            }
+          }
+        ],
+        "name": "rimac-backend-dev-appointmentConfirm",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs16.x",
+        "vpc": {},
+        "versionLogicalId": "AppointmentConfirmLambdaVersionTGAsqDQiN2a9ww5w5kcgY75jutqj03YSaPzsBW4PA"
+      },
+      "appointmentPE": {
+        "handler": "src/handlers/appointmentPE.handler",
+        "vpc": {
+          "securityGroupIds": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AppointmentPELambdaFunction\"][\"Properties\"][\"VpcConfig\"][\"SecurityGroupIds\"]"
+          },
+          "subnetIds": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AppointmentPELambdaFunction\"][\"Properties\"][\"VpcConfig\"][\"SubnetIds\"]"
+          }
+        },
+        "events": [
+          {
+            "sqs": {
+              "arn": "arn:aws:sqs:us-east-2:254727510531:SQS_PE",
+              "batchSize": 1
+            }
+          }
+        ],
+        "name": "rimac-backend-dev-appointmentPE",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs16.x",
+        "versionLogicalId": "AppointmentPELambdaVersionfoxpr2vBTgpLt79kmamPbZOzLyuQPB4X5D8IUNBo"
+      },
+      "appointmentCL": {
+        "handler": "src/handlers/appointmentCL.handler",
+        "vpc": {
+          "securityGroupIds": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AppointmentCLLambdaFunction\"][\"Properties\"][\"VpcConfig\"][\"SecurityGroupIds\"]"
+          },
+          "subnetIds": {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"AppointmentCLLambdaFunction\"][\"Properties\"][\"VpcConfig\"][\"SubnetIds\"]"
+          }
+        },
+        "events": [
+          {
+            "sqs": {
+              "arn": "arn:aws:sqs:us-east-2:254727510531:SQS_CL",
+              "batchSize": 1
+            }
+          }
+        ],
+        "name": "rimac-backend-dev-appointmentCL",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs16.x",
+        "versionLogicalId": "AppointmentCLLambdaVersionx5siP0ObGntsjRtOdsJz8MdxpvVa5tHHJATeqcspRQ"
+      }
+    },
+    "resources": {
+      "Resources": {
+        "EventBridgeVPCEndpoint": {
+          "Type": "AWS::EC2::VPCEndpoint",
+          "Properties": {
+            "VpcId": "vpc-056e5760c64b4d888",
+            "ServiceName": {
+              "Fn::Sub": "com.amazonaws.${AWS::Region}.events"
+            },
+            "VpcEndpointType": "Interface",
+            "SubnetIds": [
+              "subnet-05f80e659d5ee98da",
+              "subnet-0814d96044dac1e2f"
+            ],
+            "SecurityGroupIds": [
+              "sg-0882ea919e6ce2a3d"
+            ],
+            "PrivateDnsEnabled": true
+          }
+        }
+      },
+      "Outputs": {}
+    },
+    "configValidationMode": "warn",
+    "serviceFilename": "serverless.yml",
+    "initialServerlessConfig": {
+      "service": "rimac-backend",
+      "frameworkVersion": "3",
+      "useDotenv": true,
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
+      },
+      "custom": {
+        "$ref": "$[\"service\"][\"custom\"]"
+      },
+      "provider": {
+        "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "functions": {
+        "$ref": "$[\"service\"][\"functions\"]"
+      },
+      "resources": {
+        "$ref": "$[\"service\"][\"resources\"]"
+      }
+    },
+    "layers": {},
+    "isDashboardMonitoringPreconfigured": false
+  },
+  "package": {
+    "artifactDirectoryName": "serverless/rimac-backend/dev/1756698801108-2025-09-01T03:53:21.108Z",
+    "artifact": "rimac-backend.zip"
+  }
+}

@@ -1,0 +1,165 @@
+service: rimac-backend
+frameworkVersion: "3"
+useDotenv: true
+
+plugins:
+  #- serverless-dotenv-plugin
+  - serverless-esbuild
+  - serverless-offline
+
+custom:
+  dotenv: {}  # carga .env desde la raíz
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    target: node16
+    platform: node
+    format: cjs
+    exclude: ['aws-sdk']
+    concurrency: 10
+  serverless-offline:
+    noAuth: true
+    skipCacheInvalidation: false
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+  region: us-east-2
+  deploymentBucket:
+    name: rimac-backend-dev-serverlessdeploymentbucket
+  
+  environment:
+    # Variables de aplicación
+    APPOINTMENTS_TABLE: ${env:APPOINTMENTS_TABLE}
+    SNS_TOPIC_ARN: ${env:SNS_TOPIC_ARN}
+    SQS_PE_ARN: ${env:SQS_PE_ARN}
+    SQS_CL_ARN: ${env:SQS_CL_ARN}
+    SQS_CONFIRMATIONS_ARN: ${env:SQS_CONFIRMATIONS_ARN}
+    SQS_CONFIRMATIONS_URL: ${env:SQS_CONFIRMATIONS_URL}
+    EVENT_BUS_NAME: ${env:EVENT_BUS_NAME}
+
+    # Variables de RDS
+    DB_PE_HOST: ${env:DB_PE_HOST}
+    DB_PE_PORT: ${env:DB_PE_PORT}
+    DB_PE_USER: ${env:DB_PE_USER}
+    DB_PE_PASS: ${env:DB_PE_PASS}
+    DB_PE_NAME: ${env:DB_PE_NAME}
+
+    DB_CL_HOST: ${env:DB_CL_HOST}
+    DB_CL_PORT: ${env:DB_CL_PORT}
+    DB_CL_USER: ${env:DB_CL_USER}
+    DB_CL_PASS: ${env:DB_CL_PASS}
+    DB_CL_NAME: ${env:DB_CL_NAME}
+
+  iamRoleStatements:
+    # DynamoDB
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:GetItem
+        - dynamodb:Query
+      Resource:
+        - arn:aws:dynamodb:us-east-2:${aws:accountId}:table/${env:APPOINTMENTS_TABLE}
+        - arn:aws:dynamodb:us-east-2:${aws:accountId}:table/${env:APPOINTMENTS_TABLE}/index/*
+
+    # SNS
+    - Effect: Allow
+      Action:
+        - sns:Publish
+      Resource:
+        - ${env:SNS_TOPIC_ARN}
+
+    # SQS
+    - Effect: Allow
+      Action:
+        - sqs:SendMessage
+        - sqs:ReceiveMessage
+        - sqs:DeleteMessage
+        - sqs:GetQueueAttributes
+      Resource:
+        - ${env:SQS_PE_ARN}
+        - ${env:SQS_CL_ARN}
+        - ${env:SQS_CONFIRMATIONS_ARN}
+
+      # --- PERMISOS AÑADIDOS PARA RDS Y VPC ---
+    - Effect: "Allow"
+      Action:
+        - "rds-db:connect"
+      Resource:
+        - "arn:aws:rds-db:us-east-2:${aws:accountId}:dbuser:db-WTU5NIAOTDBDDMMO2CNJR3KYAM/${env:DB_PE_USER}" 
+        - "arn:aws:rds-db:us-east-2:${aws:accountId}:dbuser:db-WTU5NIAOTDBDDMMO2CNJR3KYAM/${env:DB_CL_USER}"
+    - Effect: "Allow"
+      Action:
+        - "ec2:CreateNetworkInterface"
+        - "ec2:DescribeNetworkInterfaces"
+        - "ec2:DeleteNetworkInterface"
+      Resource: "*"
+    
+    # EventBridge
+    - Effect: "Allow"
+      Action:
+        - "events:PutEvents"
+      Resource: "*"
+
+functions:
+  appointment:
+    handler: src/handlers/appointment.handler
+    events:
+      - httpApi:
+          path: /appointment
+          method: post
+      - httpApi:
+          path: /appointment/{insuredId}
+          method: get
+
+  appointmentConfirm:
+    handler: src/handlers/appointmentConfirm.handler
+    events:
+      - sqs:
+          arn: ${env:SQS_CONFIRMATIONS_ARN}
+          batchSize: 1
+
+  appointmentPE:
+    handler: src/handlers/appointmentPE.handler
+    vpc:
+      securityGroupIds:
+        - sg-0882ea919e6ce2a3d    # <-- REEMPLAZA con el ID del Security Group de tu Lambda
+      subnetIds:
+        - subnet-05f80e659d5ee98da # <-- ID de tu Subnet en us-east-2a
+        - subnet-0814d96044dac1e2f # <-- ID de Subnet en us-east-2b 
+    events:
+      - sqs:
+          arn: ${env:SQS_PE_ARN}
+          batchSize: 1
+
+  appointmentCL:
+    handler: src/handlers/appointmentCL.handler
+    vpc:
+      securityGroupIds:
+        - sg-0882ea919e6ce2a3d    # <-- REEMPLAZA con el ID del Security Group de tu Lambda
+      subnetIds:
+        - subnet-05f80e659d5ee98da # <-- ID de tu Subnet en us-east-2a
+        - subnet-0814d96044dac1e2f # <-- ID de Subnet en us-east-2b
+    events:
+      - sqs:
+          arn: ${env:SQS_CL_ARN}
+          batchSize: 1
+
+resources:
+  Resources:
+    # VPC Endpoint para EventBridge (Interface Endpoint)
+    EventBridgeVPCEndpoint:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcId: ${env:VPC_ID}
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.events
+        VpcEndpointType: Interface
+        SubnetIds:
+          - subnet-05f80e659d5ee98da
+          - subnet-0814d96044dac1e2f
+        SecurityGroupIds:
+          - sg-0882ea919e6ce2a3d
+        PrivateDnsEnabled: true
+
