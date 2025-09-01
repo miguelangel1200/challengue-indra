@@ -4,10 +4,6 @@ const { saveAppointmentRDS } = require('../services/rdsService');
 const { sendToSQS } = require('../services/sqsService');
 
 export const handler = async (event: SQSEvent): Promise<void> => {
-  console.log('====== VARIABLES DE ENTORNO ======');
-  console.log('SQS_CONFIRMATIONS_URL:', process.env.SQS_CONFIRMATIONS_URL);
-  console.log('APPOINTMENTS_TABLE:', process.env.APPOINTMENTS_TABLE);
-  console.log('=================================');
 
   for (const record of event.Records) {
     await processRecord(record);

@@ -1,4 +1,3 @@
-// src/utils/db.ts
 const mysql = require("mysql2/promise");
 
 /**

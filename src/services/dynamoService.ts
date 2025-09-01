@@ -1,4 +1,3 @@
-// src/services/dynamoService.ts
 const { DynamoDB } = require("aws-sdk");
 const { v4: uuidv4 } = require("uuid");
 import type { Appointment } from "../models/appointment";

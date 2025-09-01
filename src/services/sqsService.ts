@@ -1,4 +1,3 @@
-// src/services/sqsService.ts
 const { SQS } = require("aws-sdk");
 
 /**

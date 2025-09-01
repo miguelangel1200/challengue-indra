@@ -1,4 +1,3 @@
-// src/services/reportService.ts
 const db = require("../utils/db");
 
 async function getAppointmentsReport(insuredId) {

@@ -1,4 +1,3 @@
-// src/services/snsService.ts
 const { SNS } = require("aws-sdk");
 import type { Appointment } from "../models/appointment";
 
